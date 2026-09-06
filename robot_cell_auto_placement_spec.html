@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ロボットセル自動配置 仕様まとめ</title>
+<style>
+  :root {
+    --ink:#1b2733; --ink-soft:#4a5a68; --paper:#f6f7f8; --panel:#ffffff; --line:#d7dde2;
+    --blue:#2f6fa8; --blue-soft:#e7f0f7; --teal:#1f7a6c; --teal-soft:#e3f3f0;
+    --coral:#b8542f; --coral-soft:#fbeae2; --gray-soft:#eceef0; --warn:#b3282d; --warn-soft:#fbe9e9;
+    --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans); line-height:1.75; font-size:15.5px; }
+  .wrap { max-width:900px; margin:0 auto; padding:56px 24px 100px; }
+
+  header.doc-head { border-bottom:2px solid var(--ink); padding-bottom:22px; margin-bottom:40px; }
+  header.doc-head .kicker { font-family:var(--mono); font-size:12.5px; color:var(--blue); letter-spacing:.02em; margin-bottom:10px; }
+  header.doc-head h1 { font-size:27px; margin:0 0 10px; letter-spacing:-.01em; }
+  header.doc-head p { margin:0; color:var(--ink-soft); max-width:64ch; }
+
+  nav.toc { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 20px; margin-bottom:44px; }
+  nav.toc .h { font-size:12px; font-family:var(--mono); color:var(--blue); margin-bottom:8px; }
+  nav.toc ol { margin:0; padding-left:20px; columns:2; column-gap:24px; font-size:13.5px; }
+  nav.toc li { margin:4px 0; color:var(--ink-soft); }
+  nav.toc a { color:var(--ink-soft); text-decoration:none; }
+
+  section { margin-bottom:48px; scroll-margin-top:20px; }
+  section > h2 { font-size:19px; margin:0 0 6px; display:flex; align-items:baseline; gap:10px; }
+  section > h2 .no { font-family:var(--mono); font-size:13px; color:var(--blue); border:1px solid var(--blue); border-radius:3px; padding:1px 6px; flex-shrink:0; }
+  p.lead { color:var(--ink-soft); margin:10px 0 18px; max-width:68ch; }
+  h3 { font-size:15.5px; margin:22px 0 8px; }
+
+  ol, ul { padding-left:22px; margin:10px 0; }
+  li { margin:6px 0; }
+
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px 20px; margin:14px 0; }
+  .card.blue { border-left:3px solid var(--blue); }
+  .card.teal { border-left:3px solid var(--teal); }
+  .card.coral { border-left:3px solid var(--coral); }
+  .card.warn { border-left:3px solid var(--warn); background:var(--warn-soft); }
+
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:640px) { .grid2 { grid-template-columns:1fr; } }
+
+  .formula { font-family:var(--mono); font-size:13.5px; background:#1b2733; color:#d8e6f0; border-radius:8px; padding:14px 16px; overflow-x:auto; margin:10px 0; line-height:1.6; }
+  .formula .cm { color:#8aa0b3; }
+
+  table { width:100%; border-collapse:collapse; margin:14px 0; font-size:14px; }
+  th, td { text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--ink-soft); font-weight:600; font-size:12.5px; letter-spacing:.01em; }
+
+  .tag { display:inline-block; font-family:var(--mono); font-size:11.5px; padding:2px 7px; border-radius:4px; margin-right:6px; }
+  .tag.blue { background:var(--blue-soft); color:var(--blue); }
+  .tag.teal { background:var(--teal-soft); color:var(--teal); }
+  .tag.coral { background:var(--coral-soft); color:var(--coral); }
+  .tag.gray { background:var(--gray-soft); color:var(--ink-soft); }
+  .tag.warn { background:var(--warn-soft); color:var(--warn); }
+
+  .flow { display:flex; flex-direction:column; gap:0; margin:18px 0; }
+  .flow-step { display:flex; align-items:center; gap:14px; padding:12px 14px; background:var(--panel); border:1px solid var(--line); border-radius:8px; }
+  .flow-step .n { font-family:var(--mono); font-size:12px; width:22px; height:22px; border-radius:50%; background:var(--blue); color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .flow-step .t { font-weight:600; font-size:14.5px; }
+  .flow-step .s { color:var(--ink-soft); font-size:13px; margin-top:2px; }
+  .flow-arrow { text-align:center; color:var(--line); font-size:15px; padding:2px 0; }
+
+  figure { margin:18px 0; text-align:center; }
+  figure svg { max-width:100%; height:auto; }
+  figcaption { color:var(--ink-soft); font-size:12.5px; margin-top:8px; }
+
+  .cand-list { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin:12px 0; }
+  @media (max-width:600px) { .cand-list { grid-template-columns:1fr; } }
+  .cand { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; }
+  .cand .k { font-weight:600; font-size:13.5px; }
+  .cand .v { color:var(--ink-soft); font-size:12.5px; margin-top:4px; }
+
+  .note { background:var(--blue-soft); border-radius:8px; padding:14px 16px; font-size:13.5px; }
+
+  footer { border-top:1px solid var(--line); margin-top:60px; padding-top:18px; color:var(--ink-soft); font-size:12.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="doc-head">
+    <div class="kicker">ROBOT CELL LAYOUT — FULL PLACEMENT SPECIFICATION</div>
+    <h1>単一多関節ロボットのピック&amp;プレイス自動配置 仕様</h1>
+    <p>ロボット・架台(テーブル架台/キャスター架台)・作業用テーブルについて、位置(オフセット)と回転角(向き)をルールベースで自動決定する方法の全体仕様。架台・テーブルはいずれもX軸に対して水平/垂直の軸整列のみを取る前提。</p>
+  </header>
+
+  <nav class="toc">
+    <div class="h">CONTENTS</div>
+    <ol>
+      <li><a href="#s0">入力パラメータ</a></li>
+      <li><a href="#s1">全体フロー</a></li>
+      <li><a href="#s2">架台タイプ判定</a></li>
+      <li><a href="#s3">架台内オフセット探索</a></li>
+      <li><a href="#s4">収容パターンの分岐</a></li>
+      <li><a href="#s5">片方だけ収まる場合の優先順位</a></li>
+      <li><a href="#s6">テーブルの角度決定</a></li>
+      <li><a href="#s7">スライド可能範囲と干渉チェック</a></li>
+      <li><a href="#s8">どちらを架台に残すか</a></li>
+      <li><a href="#s9">straddle(境界またぎ)の扱い</a></li>
+      <li><a href="#s10">全体まとめ</a></li>
+    </ol>
+  </nav>
+
+  <section id="s0">
+    <h2><span class="no">0</span>入力パラメータ</h2>
+    <table>
+      <tr><th>記号</th><th>意味</th></tr>
+      <tr><td>dPx, dPy / dQx, dQy</td><td>ロボットから見たピック(P)・プレイス(Q)エリアの相対オフセット範囲。既にユーザー指定済みで、可動域内に収まっているかの判定は別ロジックで完了している前提</td></tr>
+      <tr><td>Ws, Ds</td><td>架台の天板寸法(幅・奥行、固定)</td></tr>
+      <tr><td>Wt, Lt</td><td>作業用テーブルの短辺・長辺寸法(細長い直方体、固定)</td></tr>
+      <tr><td>m</td><td>安全クリアランス(架台・テーブル間で共通)</td></tr>
+    </table>
+    <p class="lead" style="margin-top:2px;">架台には <span class="tag gray">テーブル架台</span> と <span class="tag gray">キャスター架台</span> の2種を想定。<strong>架台・テーブルとも向きは0°/90°/180°/270°の軸整列のみ</strong>とする(製造現場での慣習に合わせ、斜め配置は不可とする)。</p>
+  </section>
+
+  <section id="s1">
+    <h2><span class="no">1</span>全体フロー</h2>
+    <p class="lead" style="margin:0 0 12px;">ロボットの世界座標・可動域チェックは既に完了済みという前提のため、架台内の配置決定から開始する。</p>
+    <div class="flow">
+      <div class="flow-step"><div class="n">1</div><div><div class="t">架台タイプ判定</div><div class="s">テーブル架台 / キャスター架台</div></div></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step"><div class="n">2</div><div><div class="t">架台ローカル座標でのロボット搭載位置(オフセット)探索</div><div class="s">P・Qそれぞれ個別に「配置可能領域(区間)」を計算</div></div></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step"><div class="n">3</div><div><div class="t">収容パターンに応じてテーブル要否を分岐</div><div class="s">両方収まる/片方のみ/両方テーブル/straddle(境界またぎ)</div></div></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step"><div class="n">4</div><div><div class="t">テーブルの角度・位置決定 &amp; 干渉チェック</div><div class="s">水平/垂直の2択、区間の差し引きでスライド位置を決定</div></div></div>
+    </div>
+  </section>
+
+  <section id="s2">
+    <h2><span class="no">2</span>架台タイプ判定</h2>
+    <div class="grid2">
+      <div class="card teal">
+        <span class="tag teal">テーブル架台</span>
+        <p style="margin:8px 0 0;">天板があるため、P・Qが架台内に収まるかを次ステップで判定する。収まる場合はテーブル不要。</p>
+      </div>
+      <div class="card coral">
+        <span class="tag coral">キャスター架台</span>
+        <p style="margin:8px 0 0;">天板を持たない前提のため、常に「両方テーブル」パターンがデフォルトになる。架台自体はロボット搭載のみのミニマム構成。</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="s3">
+    <h2><span class="no">3</span>架台内オフセット探索(位置の決め方)</h2>
+    <p class="lead">P・Qはロボット相対オフセットとして既に固定されているため、自由度は「架台上でロボットをどこに据えるか」という並進のみ。各領域について区間制約を立て、共通部分を配置可能領域とする。</p>
+    <div class="formula">m ≤ x_r + dPx_min<span class="cm">  (Pの左端が架台内)</span>
+x_r + dPx_max ≤ Ws − m<span class="cm">  (Pの右端が架台内)</span>
+  → x_r ∈ [ m − dPx_min ,  Ws − m − dPx_max ]
+<span class="cm">  ※ y方向・Q領域についても同様の区間を求め、全区間の共通部分を採る</span></div>
+    <figure>
+      <svg viewBox="0 0 380 300" width="380" height="300">
+        <rect x="40" y="100" width="300" height="200" rx="12" fill="var(--gray-soft)" stroke="#c7ced4" stroke-width="1"/>
+        <text x="60" y="122" font-size="13" fill="#4a5a68">架台(ローカル座標)</text>
+        <rect x="135" y="155" width="100" height="100" rx="6" fill="none" stroke="#9aa7b0" stroke-width="1" stroke-dasharray="4 3"/>
+        <text x="185" y="172" text-anchor="middle" font-size="11" fill="#4a5a68">配置可能領域</text>
+        <rect x="105" y="175" width="60" height="60" rx="8" fill="#e3f3f0" stroke="#1f7a6c" stroke-width="1"/>
+        <text x="135" y="205" text-anchor="middle" font-size="14" fill="#1f7a6c" font-weight="700">P</text>
+        <rect x="215" y="175" width="60" height="60" rx="8" fill="#fbeae2" stroke="#b8542f" stroke-width="1"/>
+        <text x="245" y="205" text-anchor="middle" font-size="14" fill="#b8542f" font-weight="700">Q</text>
+        <circle cx="190" cy="245" r="13" fill="#2f6fa8"/>
+        <text x="190" y="272" text-anchor="middle" font-size="11" fill="#4a5a68">ロボット基準点(配置可能領域の中心)</text>
+      </svg>
+      <figcaption>共通部分(点線)が空でなければ、その中心にロボットを配置する</figcaption>
+    </figure>
+    <p>共通部分が<strong>空でない</strong>→その中心(または安全側に寄せた点)にロボットを配置。<strong>空</strong>→架台に収まらないと判定し、次ステップの分岐へ。</p>
+  </section>
+
+  <section id="s4">
+    <h2><span class="no">4</span>収容パターンの分岐</h2>
+    <div class="grid2">
+      <div class="card teal">
+        <span class="tag teal">両方収まる</span>
+        <p style="margin:8px 0 0;">P・Q双方の区間に共通部分あり。その中心にロボットを配置。架台の向きは、P&amp;Q外接矩形の長辺がX軸寄りかY軸寄りかで0°/90°に丸める。テーブル不要。</p>
+      </div>
+      <div class="card coral">
+        <span class="tag coral">片方だけ収まる</span>
+        <p style="margin:8px 0 0;">収まる方の区間内で、収まらない方のfootprintが架台と<strong>完全分離</strong>できる部分区間を優先して選ぶ(次節)。収まらない方はテーブル化。</p>
+      </div>
+      <div class="card blue">
+        <span class="tag blue">両方テーブル</span>
+        <p style="margin:8px 0 0;">架台はロボット搭載のみのミニマム構成。P・Qともに外部テーブルへ。キャスター架台は基本このパターン。</p>
+      </div>
+      <div class="card warn">
+        <span class="tag warn">straddle(境界またぎ)</span>
+        <p style="margin:8px 0 0;">どうオフセットをずらしても領域が架台境界をまたぐ=区間が空。テーブルは架台と重なる前提とし、人手確認フラグを立てる(9節)。</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="s5">
+    <h2><span class="no">5</span>片方だけ収まる場合の優先順位(位置の微調整)</h2>
+    <ol>
+      <li><strong>Tier 1(必須)</strong>:収まる方の区間内にロボット位置を収める</li>
+      <li><strong>Tier 2(できれば)</strong>:その区間内で、テーブル化する方が架台と重ならない部分区間があれば採用</li>
+      <li><strong>Tier 3(フォールバック)</strong>:Tier2不可なら区間内で重なりが最小になる端を採用し、straddle警告として人手確認へ</li>
+    </ol>
+    <figure>
+      <svg viewBox="0 0 380 170" width="380" height="170">
+        <line x1="60" y1="100" x2="320" y2="100" stroke="#c7ced4" stroke-width="10" stroke-linecap="round"/>
+        <line x1="60" y1="100" x2="216" y2="100" stroke="#b8542f" stroke-width="10" stroke-linecap="round"/>
+        <line x1="216" y1="100" x2="320" y2="100" stroke="#1f7a6c" stroke-width="10" stroke-linecap="round"/>
+        <line x1="60" y1="85" x2="60" y2="115" stroke="#4a5a68" stroke-width="1.5"/>
+        <line x1="320" y1="85" x2="320" y2="115" stroke="#4a5a68" stroke-width="1.5"/>
+        <line x1="216" y1="80" x2="216" y2="120" stroke="#1b2733" stroke-width="1.5" stroke-dasharray="3 3"/>
+        <text x="60" y="130" text-anchor="middle" font-size="12" fill="#4a5a68">区間の左端</text>
+        <text x="320" y="130" text-anchor="middle" font-size="12" fill="#4a5a68">区間の右端</text>
+        <text x="216" y="145" text-anchor="middle" font-size="12" fill="#1b2733" font-weight="600">分離しきい値</text>
+        <text x="138" y="70" text-anchor="middle" font-size="13" fill="#b8542f" font-weight="600">重なる</text>
+        <text x="268" y="70" text-anchor="middle" font-size="13" fill="#1f7a6c" font-weight="600">分離できる</text>
+      </svg>
+      <figcaption>しきい値が区間内にあれば右側(分離できる側)から選ぶ。区間全体が左側なら重なり最小の右端を採用</figcaption>
+    </figure>
+    <p>すべて区間の共通部分・端点の比較という<strong>閉形式の計算</strong>で完結し、反復探索(最適化)は発生しない。</p>
+  </section>
+
+  <section id="s6">
+    <h2><span class="no">6</span>テーブルの角度決定(回転角の決め方)</h2>
+    <p class="lead">テーブルの向きはX軸に平行(水平)または垂直の2択のみ。架台の向きも同様に軸整列限定。</p>
+    <div class="formula">Δx = |x_region − x_stand|,  Δy = |y_region − y_stand|
+
+Δx &gt; Δy  → <span class="cm">垂直配置(長辺∥Y軸、短辺が架台側=X方向を向く)</span>
+Δx ≤ Δy  → <span class="cm">水平配置(長辺∥X軸、短辺がY方向を向く)</span></div>
+    <ol>
+      <li>収容可否(領域がテーブル内に収まるか)で先に足切り</li>
+      <li>両方の向きで収まる場合のみ、Δx/Δyルールで最終決定</li>
+      <li>片方でしか収まらない場合はその向きを無条件に採用</li>
+    </ol>
+    <figure>
+      <svg viewBox="0 0 380 290" width="380" height="290">
+        <line x1="165" y1="190" x2="85" y2="190" stroke="#9aa7b0" stroke-width="0.5" stroke-dasharray="4 3"/>
+        <line x1="190" y1="165" x2="190" y2="85" stroke="#9aa7b0" stroke-width="0.5" stroke-dasharray="4 3"/>
+        <rect x="55" y="145" width="30" height="90" rx="6" fill="#e3f3f0" stroke="#1f7a6c"/>
+        <text x="125" y="150" text-anchor="middle" font-size="13" font-weight="600" fill="#1f7a6c">Pテーブル</text>
+        <text x="125" y="168" text-anchor="middle" font-size="11" fill="#4a5a68">垂直配置(Δx&gt;Δy)</text>
+        <rect x="145" y="55" width="90" height="30" rx="6" fill="#fbeae2" stroke="#b8542f"/>
+        <text x="165" y="115" text-anchor="middle" font-size="13" font-weight="600" fill="#b8542f">Qテーブル</text>
+        <text x="165" y="133" text-anchor="middle" font-size="11" fill="#4a5a68">水平配置(Δy≧Δx)</text>
+        <rect x="165" y="165" width="50" height="50" rx="8" fill="var(--gray-soft)" stroke="#c7ced4"/>
+        <text x="190" y="184" text-anchor="middle" font-size="13" fill="#4a5a68">架台</text>
+        <text x="190" y="200" text-anchor="middle" font-size="10.5" fill="#4a5a68">(ロボットのみ)</text>
+        <line x1="290" y1="250" x2="320" y2="250" stroke="#4a5a68" stroke-width="0.5"/>
+        <text x="328" y="250" text-anchor="middle" font-size="11" fill="#4a5a68">X</text>
+        <line x1="290" y1="250" x2="290" y2="220" stroke="#4a5a68" stroke-width="0.5"/>
+        <text x="290" y="210" text-anchor="middle" font-size="11" fill="#4a5a68">Y</text>
+      </svg>
+      <figcaption>架台からX方向に離れたPは垂直配置、Y方向に離れたQは水平配置になる例</figcaption>
+    </figure>
+  </section>
+
+  <section id="s7">
+    <h2><span class="no">7</span>スライド可能範囲と干渉チェック</h2>
+    <p class="lead">テーブルは対象領域より一回り大きいため、領域を内包したままテーブル中心を動かせる「スライド可能範囲(区間)」がある。この区間から、干渉しうる相手(架台・他テーブル)と重なる部分を穴として差し引き、残った区間から位置を選ぶ。</p>
+    <figure>
+      <svg viewBox="0 0 380 200" width="380" height="200">
+        <line x1="60" y1="100" x2="320" y2="100" stroke="#1f7a6c" stroke-width="10" stroke-linecap="round"/>
+        <line x1="112" y1="100" x2="177" y2="100" stroke="var(--paper)" stroke-width="12"/>
+        <line x1="112" y1="100" x2="177" y2="100" stroke="#b8542f" stroke-width="10" stroke-linecap="round" stroke-dasharray="6 4"/>
+        <line x1="242" y1="100" x2="281" y2="100" stroke="var(--paper)" stroke-width="12"/>
+        <line x1="242" y1="100" x2="281" y2="100" stroke="#b8542f" stroke-width="10" stroke-linecap="round" stroke-dasharray="6 4"/>
+        <text x="144" y="80" text-anchor="middle" font-size="11.5" fill="#b8542f">架台と重なる</text>
+        <text x="261" y="80" text-anchor="middle" font-size="11.5" fill="#b8542f">他テーブルと重なる</text>
+        <text x="86" y="128" text-anchor="middle" font-size="11.5" fill="#1f7a6c" font-weight="600">置ける</text>
+        <text x="209" y="128" text-anchor="middle" font-size="11.5" fill="#1f7a6c" font-weight="600">置ける</text>
+        <text x="300" y="128" text-anchor="middle" font-size="11.5" fill="#1f7a6c" font-weight="600">置ける</text>
+        <text x="190" y="160" text-anchor="middle" font-size="12" fill="#4a5a68">テーブルのスライド可能範囲(1本の区間)</text>
+      </svg>
+      <figcaption>障害物ごとに重なる区間を差し引き、残った区間から選ぶ(反復探索ではなく引き算)</figcaption>
+    </figure>
+    <p>複数の空き区間が残った場合は「一番広い区間」「架台に近い方」などの単純な基準で選択する。この区間がそもそも空(=テーブル寸法が領域より小さい)なら、寸法不足のエラーとして扱う。</p>
+  </section>
+
+  <section id="s8">
+    <h2><span class="no">8</span>ピック/プレイスどちらを架台に残すか</h2>
+    <p class="lead">両方個別には収まるが同時には収まらない場合の優先順位の目安。</p>
+    <ul>
+      <li>専用治具・位置決めフィクスチャが必要な側を架台側に残す(精度確保)</li>
+      <li>面積が小さい側を架台側に残す</li>
+      <li>経験則として、<strong>ピック側(供給・位置決め精度重視)は架台上、プレイス側(パレット・コンベア等で面積が大きくなりがち)はテーブル/外部設備</strong>になる傾向がある。ただし絶対則ではなく、上記2点の個別判定を優先する</li>
+    </ul>
+  </section>
+
+  <section id="s9">
+    <h2><span class="no">9</span>straddle(境界またぎ)ケースの扱い</h2>
+    <p class="lead">領域が架台境界をまたいでおり、どうオフセットをずらしても全体を架台内に収められない場合。テーブルは領域全体をカバーする必要があるため、架台と物理的に重なるのは避けられない。</p>
+    <figure>
+      <svg viewBox="0 0 380 300" width="380" height="300">
+        <rect x="40" y="90" width="190" height="170" rx="12" fill="var(--gray-soft)" stroke="#c7ced4"/>
+        <text x="60" y="112" font-size="13" fill="#4a5a68">架台</text>
+        <rect x="175" y="135" width="140" height="90" rx="8" fill="#fbeae2" stroke="#b8542f"/>
+        <text x="245" y="142" text-anchor="middle" font-size="12" fill="#b8542f">テーブル</text>
+        <rect x="190" y="150" width="110" height="60" rx="8" fill="#e3f3f0" stroke="#1f7a6c"/>
+        <text x="255" y="180" text-anchor="middle" font-size="14" fill="#1f7a6c" font-weight="700">P</text>
+        <rect x="175" y="135" width="55" height="90" fill="none" stroke="#DC3545" stroke-width="1.5" stroke-dasharray="5 3"/>
+        <text x="202" y="168" text-anchor="middle" font-size="11" fill="#DC3545">干渉</text>
+        <text x="202" y="186" text-anchor="middle" font-size="11" fill="#DC3545">要確認</text>
+      </svg>
+      <figcaption>領域が架台境界をまたぐと、テーブルは架台と必然的に重なる</figcaption>
+    </figure>
+    <ol>
+      <li>まず単体領域での区間探索を必ず試す(パターン1の可能性を潰す)</li>
+      <li>それでも配置可能領域が空 →「straddleフラグ」を明示的に立て、自動調整ループの対象から外して人手確認へ</li>
+      <li>人手修正の選択肢のヒント:天板高さを揃えて隣接させる/架台サイズを見直す/ロボット搭載位置の上流見直し</li>
+    </ol>
+  </section>
+
+  <section id="s10">
+    <h2><span class="no">10</span>全体まとめ</h2>
+    <div class="cand-list">
+      <div class="cand"><div class="k">位置(オフセット)</div><div class="v">区間の共通部分・差し引きで決定(閉形式の計算)</div></div>
+      <div class="cand"><div class="k">向き(回転角)</div><div class="v">水平/垂直の2択のみ、Δx/Δy比較で決定</div></div>
+      <div class="cand"><div class="k">テーブル要否</div><div class="v">個別収容判定 → 4パターン(両方/片方/両方テーブル/straddle)に分岐</div></div>
+      <div class="cand"><div class="k">干渉回避</div><div class="v">区間の差し引き。解なしは人手確認フラグ</div></div>
+    </div>
+    <div class="note">
+      候補パターンはいずれも少数(2〜4択)で、各判定は範囲の重なりを見る閉形式の計算のみ。反復して答えに近づける最適化処理は現行方針(寸法固定・軸整列・人手修正あり)では発生しない。
+    </div>
+  </section>
+
+  <footer>
+    ロボットセル自動配置 仕様まとめ / 架台・テーブルとも水平・垂直の軸整列配置、寸法固定を前提
+  </footer>
+
+</div>
+</body>
+</html>
